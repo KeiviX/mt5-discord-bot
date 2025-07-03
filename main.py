@@ -65,19 +65,38 @@ async def check_trades():
 async def check_orders(channel, old_orders, new_orders):
     # New orders
     for ticket, order in new_orders.items():
-        if order.symbol == "XAUUSD" and ticket not in old_orders:
-            order_type = "Buy Limit" if order.type == 2 else "Sell Limit" if order.type == 3 else "Buy Stop" if order.type == 4 else "Sell Stop" if order.type == 5 else "Unknown"
-            color = discord.Color.green() if order.type in [2, 4] else discord.Color.red()
-            fields = {
-                "Symbol": order.symbol,
-                "Type": order_type,
-                "Price": order.price_open
-            }
-            if order.sl > 0: # SL is present
-                fields["Stop Loss"] = order.sl
-            if order.tp > 0: # TP is present
-                fields["Take Profit"] = order.tp
-            await send_embed(channel, "New Pending Order", color, fields)
+        if order.symbol == "XAUUSD":
+            if ticket not in old_orders:
+                # New pending order
+                order_type = "Buy Limit" if order.type == 2 else "Sell Limit" if order.type == 3 else "Buy Stop" if order.type == 4 else "Sell Stop" if order.type == 5 else "Unknown"
+                color = discord.Color.green() if order.type in [2, 4] else discord.Color.red()
+                fields = {
+                    "Symbol": order.symbol,
+                    "Type": order_type,
+                    "Price": order.price_open
+                }
+                if order.sl > 0 and order.tp > 0:
+                    fields["Stop Loss / Take Profit"] = f"SL: {order.sl} / TP: {order.tp}"
+                elif order.sl > 0:
+                    fields["Stop Loss"] = order.sl
+                elif order.tp > 0:
+                    fields["Take Profit"] = order.tp
+                await send_embed(channel, "New Pending Order", color, fields)
+            else:
+                # Potentially modified pending order
+                old_order = old_orders[ticket]
+                if old_order.sl != order.sl or old_order.tp != order.tp:
+                    order_type = "Buy Limit" if order.type == 2 else "Sell Limit" if order.type == 3 else "Buy Stop" if order.type == 4 else "Sell Stop" if order.type == 5 else "Unknown"
+                    color = discord.Color.blue()
+                    fields = {
+                        "Symbol": order.symbol,
+                        "Type": order_type
+                    }
+                    if old_order.sl != order.sl:
+                        fields["New SL"] = order.sl if order.sl > 0 else "Removed"
+                    if old_order.tp != order.tp:
+                        fields["New TP"] = order.tp if order.tp > 0 else "Removed"
+                    await send_embed(channel, "Pending Order Modified", color, fields)
 
     # Deleted orders
     for ticket, order in old_orders.items():
